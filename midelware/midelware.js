@@ -1,4 +1,10 @@
 const jwt = require("jsonwebtoken");
+const path = require("path");
+var fs = require("fs");
+const multer = require("multer");
+const Joi = require("joi");
+const res = require("express/lib/response");
+const productData = require("../models/productModel");
 /**
  * @author prabhakar sarkar
  *@description this is jwt verification function
@@ -38,7 +44,63 @@ const checkRole = (roles) => async (req, res, next) => {
   next();
 };
 
+var storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    // console.log(file, "hhhhhhhhhh");
+    cb(null, "upload/image");
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + "-" + file.originalname);
+  },
+});
+var upload = multer({
+  storage: storage,
+  fileFilter: (req, file, cb) => {
+    if (!file.originalname.match(/\.(jpg|jpeg|png|webp)$/)) {
+      return cb(new Error("Please upload an Image!!"));
+    }
+    cb(undefined, true);
+  },
+});
+
+const validation = async (req, res, next) => {
+  const condition = {
+    foodName: req.body.foodName,
+  };
+  const exist = await productData.findOne(condition);
+  if (exist) {
+    deleteFile(req.file);
+
+    return res.status(200).send({
+      statusCode: 409,
+      message: "food is already in database",
+    });
+  }
+  const schema = Joi.object({
+    foodName: Joi.string().required(),
+    foodPrice: Joi.string().required(),
+    foodType: Joi.string().required(),
+  });
+  const { error, value } = schema.validate(req.body);
+  if (error) {
+    deleteFile(req.file);
+
+    return res.status(400).send({
+      message: error.message || "Bad Request!",
+    });
+  } else {
+    req.body = value;
+    next();
+  }
+};
+
+const deleteFile = (file) => {
+  if (file) fs.unlink(file.path, (err) => console.log(err));
+};
+
 module.exports = {
   checkAuth,
   checkRole,
+  upload,
+  validation,
 };

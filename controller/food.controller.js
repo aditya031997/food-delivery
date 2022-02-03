@@ -1,32 +1,30 @@
 const productData = require("../models/productModel");
 const { redirect } = require("express/lib/response");
 const e = require("express");
+var fs = require("fs");
+const path = require("path");
 
-//.......add User.......//
+//.......add food.......//
 const addData = async (req, res) => {
+  const image = req.file.path;
+  console.log(image, "-------");
   try {
-    const condition = {
-      foodName: req.body.foodName,
-    };
-    const exist = await productData.findOne(condition);
-    if (exist) {
-      return res.status(200).send({
-        statusCode: 409,
-        message: "food is already in database",
-      });
-    } else {
-      const user = await productData.create({ ...req.body });
-      return res.status(201).send({
-        statusCode: 200,
-        message: "food add succesfully",
-      });
-    }
+    const user = await productData.create({ ...req.body, avtar: image });
+
+    // console.log(user);
+    return res.status(201).send({
+      statusCode: 200,
+      message: "food add succesfully",
+    });
   } catch (error) {
-    if (error) throw error;
+    throw error;
   }
 };
 
-const getData = async (req, res) => {
+const getData = async (req, res, next) => {
+  const pageSize = 4;
+  const currentPage = 1;
+
   if (req.query.foodType) {
     try {
       const result = await productData.find({ foodType: req.query.foodType });
@@ -34,9 +32,17 @@ const getData = async (req, res) => {
     } catch (error) {}
   } else {
     try {
-      const allItems = await productData.find();
-      res.send(allItems);
-    } catch (error) {}
+      const allItems = await productData
+        .find()
+        .skip(pageSize * (currentPage - 1))
+        .limit(pageSize);
+
+      const total = await productData.countDocuments();
+      console.log(total);
+      res.send({ data: allItems, statusCode: 200 });
+    } catch (error) {
+      return res.send(error);
+    }
   }
 };
 
@@ -46,11 +52,19 @@ const editData = async (req, res) => {
       _id: req.params.id,
     };
     const exist = await productData.findOne(condition);
-    const editStudent = await productData.findByIdAndUpdate({ _id: condition._id }, req.body);
-    return res.status(200).send({
-      statusCode: 200,
-      message: "data updated succesfully",
-    });
+    if (exist) {
+      const editStudent = await productData.findByIdAndUpdate({ _id: condition._id }, req.body);
+      return res.status(200).send({
+        editStudent,
+        statusCode: 200,
+        message: "data updated succesfully",
+      });
+    } else {
+      return res.status(200).send({
+        statusCode: 409,
+        message: "invalid dataId",
+      });
+    }
   } catch (error) {
     return res.status(500).send({
       message: error.message,

@@ -10,5 +10,8 @@ const productSchema = mongoose.Schema({
   foodType: {
     type: String,
   },
+  avtar: {
+    type: String,
+  },
 });
 module.exports = mongoose.model("food", productSchema);
